@@ -6,7 +6,21 @@ const { default: axios } = require("axios");
 const app = express();
 
 const generatePdf = async (payload) => {
-    const { logo, name, show_address, address, show_phone_number, phone_number, binId, showMushak, website, email } = payload;
+    const {
+        logo,
+        name,
+        show_address,
+        address,
+        show_phone_number,
+        phone_number,
+        binId,
+        showMushak,
+        website,
+        email,
+        show_table,
+        table_no,
+        order_id,
+    } = payload;
 
     // Create a document
     const doc = new PDFDocument({
@@ -79,7 +93,31 @@ const generatePdf = async (payload) => {
     }
 
     // dashed line
-    doc.moveTo(10, 116).lineTo(287.64, 116).dash(5, { space: 2 }).opacity(0.5).stroke();
+    doc.moveTo(10, 116).lineTo(287.64, 116).dash(5, { space: 2 }).opacity(1).stroke();
+
+    // note
+    doc.moveDown(1);
+    doc.fontSize(10);
+    doc.text("Note:", { align: "left" });
+
+    // table no
+    if (show_table) {
+        doc.fontSize(12);
+        doc.moveDown(0.15);
+        doc.text(`Table: ${table_no}`, { align: "left" });
+    }
+
+    // order id
+    doc.fontSize(11);
+    doc.moveDown(0.15);
+    doc.text(`Order: ${order_id}`, { align: "left" });
+
+    // dashed line
+    if (show_table) {
+        doc.moveTo(10, 170).lineTo(287.64, 170).dash(5, { space: 2 }).opacity(1).stroke();
+    } else {
+        doc.moveTo(10, 155).lineTo(287.64, 155).dash(5, { space: 2 }).opacity(1).stroke();
+    }
 
     // end doc and return it
     doc.end();
@@ -100,6 +138,9 @@ app.post("/print", async (req, res) => {
         showMushak: false,
         website: "https://vapex.io",
         email: "contact@vapex.io",
+        show_table: false,
+        table_no: 1,
+        order_id: "123456789",
     });
 
     // See below for browser usage
