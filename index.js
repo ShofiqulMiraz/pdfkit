@@ -4,36 +4,16 @@ const express = require("express");
 const { default: axios } = require("axios");
 const codes = require("rescode");
 const { log } = require("console");
+const dayjs = require("dayjs");
 
 const app = express();
 
-const generatePdf = async (payload) => {
-    const {
-        logo,
-        name,
-        show_address,
-        address,
-        show_phone_number,
-        phone_number,
-        binId,
-        showMushak,
-        website,
-        email,
-        show_table,
-        table_no,
-        order_id,
-        showCashierName,
-        cashierName,
-        createdAt,
-        numberOfGuests,
-        showNumberOfGuests,
-    } = payload;
-
-    const orderItemsLength = 5;
+const generatePdf = async (order, user) => {
+    const order_items_length = order.order_items.length;
 
     // Create a document
     const doc = new PDFDocument({
-        size: [297.64, 500 + orderItemsLength * 10],
+        size: [297.64, 500 + order_items_length * 10],
         margins: {
             top: 10,
             bottom: 10,
@@ -43,11 +23,11 @@ const generatePdf = async (payload) => {
     });
 
     // logo
-    if (logo) {
+    if (user.business.invoice_logo) {
         // make the logo a readable buffer
         const response = await axios({
             method: "get",
-            url: logo,
+            url: user.business.invoice_logo,
             responseType: "arraybuffer",
         });
 
@@ -58,47 +38,47 @@ const generatePdf = async (payload) => {
             height: 40,
         });
     } else {
-        doc.text(name, { align: "center" }).fontSize(25);
+        doc.text(user.business.name, { align: "center" }).fontSize(25);
     }
 
     // address
-    if (show_address) {
+    if (user.business.invoice_show_address) {
         doc.fontSize(10);
         doc.moveDown(0.2);
-        doc.text(address, { align: "center" });
+        doc.text(order.branch.address, { align: "center" });
     }
 
     // phone number
-    if (show_phone_number) {
+    if (user.business.invoice_show_contact_number) {
         doc.fontSize(10);
         doc.moveDown(0.1);
-        doc.text(`Phone: ${phone_number}`, { align: "center" });
+        doc.text(`Phone: ${order.branch.contact_number}`, { align: "center" });
     }
 
     // bin id and mushak
-    if (binId && showMushak) {
+    if (user.business.bin_id && user.business.invoice_show_mushak) {
         doc.fontSize(10);
         doc.moveDown(0.1);
-        doc.text(`BIN: ${binId} | MUSHAK 6.3`, { align: "center" });
-    } else if (binId && !showMushak) {
+        doc.text(`BIN: ${user.business.bin_id} | MUSHAK 6.3`, { align: "center" });
+    } else if (user.business.bin_id && !user.business.invoice_show_mushak) {
         doc.fontSize(10);
         doc.moveDown(0.1);
-        doc.text(`BIN: ${binId}`, { align: "center" });
+        doc.text(`BIN: ${user.business.bin_id}`, { align: "center" });
     }
 
     // website and email
-    if (website && email) {
+    if (user.business.invoice_website && user.business.invoice_email) {
         doc.fontSize(10);
         doc.moveDown(0.1);
-        doc.text(`${website} | ${email}`, { align: "center" });
-    } else if (website && !email) {
+        doc.text(`${user.business.invoice_website} | ${user.business.invoice_email}`, { align: "center" });
+    } else if (user.business.invoice_website && !user.business.invoice_email) {
         doc.fontSize(10);
         doc.moveDown(0.1);
-        doc.text(`${website}`, { align: "center" });
-    } else if (!website && email) {
+        doc.text(`${user.business.invoice_website}`, { align: "center" });
+    } else if (!user.business.invoice_website && user.business.invoice_email) {
         doc.fontSize(10);
         doc.moveDown(0.1);
-        doc.text(`${email}`, { align: "center" });
+        doc.text(`${user.business.invoice_email}`, { align: "center" });
     }
 
     // dashed line
@@ -110,21 +90,21 @@ const generatePdf = async (payload) => {
     doc.text("Note:", { align: "left" });
 
     // table no
-    if (show_table) {
+    if (user.business.invoice_show_table) {
         doc.fontSize(12);
         doc.moveDown(0.15);
-        doc.text(`Table: ${table_no}`, { align: "left" });
+        doc.text(`Table: ${order.table ? order.table.name : "N/A"}`, { align: "left" });
     }
 
     // order id
     doc.fontSize(11);
     doc.moveDown(0.15);
-    doc.text(`Order: ${order_id}`, { align: "left" });
+    doc.text(`Order: ${order.id}`, { align: "left" });
 
     // dashed line for guest bill
     let xStart = 10;
     let xEnd = 287.64;
-    let yPosition = show_table ? 170 : 155;
+    let yPosition = user.business.invoice_show_table ? 170 : 155;
     let middlePoint = xStart + (xEnd - xStart) / 2;
     let textOffset = 1.5; // adjust this value to move the text up or down
 
@@ -141,49 +121,37 @@ const generatePdf = async (payload) => {
         .stroke();
 
     // cashier name
-    if (showCashierName) {
+    if (user.business.invoice_show_cashier_name) {
         doc.fontSize(11);
         doc.moveDown(0.2);
-        doc.text(`Cashier Name: ${cashierName}`, { align: "left" });
+        doc.text(`Cashier Name: ${order.cashier_name ?? "N/A"}`, { align: "left" });
     }
-
-    // date and time, extract from createdAt and show it space between
-    const date = new Date(createdAt);
-    const formattedDate = date.toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-    });
-    const formattedTime = date.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-    });
 
     // date and time
     doc.fontSize(11);
     doc.moveDown(0.2);
-    doc.text(`Date: ${formattedDate}`, { align: "left" });
+    doc.text(`Date: ${dayjs(order.created_at).format("DD-MMM-YYYY")}`, { align: "left" });
     doc.fontSize(11);
     doc.moveUp(1);
-    doc.text(`Time: ${formattedTime}`, { align: "right" });
+    doc.text(`Time: ${dayjs(order.created_at).format("hh:mm A")}`, { align: "right" });
 
     // show number of guests
-    if (showNumberOfGuests) {
+    if (user.business.invoice_show_number_of_guests) {
         doc.fontSize(11);
         doc.moveDown(0.2);
-        doc.text(`Number of Guests: ${numberOfGuests}`, { align: "left" });
+        doc.text(`Number of Guests: N/A`, { align: "left" });
     }
 
     // dashed lined order items header
     let line_top = 0;
     let line_bottom = 0;
-    if (showCashierName && showNumberOfGuests) {
+    if (user.business.invoice_show_cashier_name && user.business.invoice_show_number_of_guests) {
         line_top = 230;
         line_bottom = 250;
-    } else if (showCashierName && !showNumberOfGuests) {
+    } else if (user.business.invoice_show_cashier_name && !user.business.invoice_show_number_of_guests) {
         line_top = 215;
         line_bottom = 235;
-    } else if (!showCashierName && showNumberOfGuests) {
+    } else if (!user.business.invoice_show_cashier_name && user.business.invoice_show_number_of_guests) {
         line_top = 215;
         line_bottom = 235;
     } else {
@@ -203,20 +171,20 @@ const generatePdf = async (payload) => {
     doc.moveTo(10, line_bottom).lineTo(287.64, line_bottom).dash(5, { space: 2 }).opacity(1).stroke();
 
     // order items
-    Array.from({ length: orderItemsLength }).forEach((_, index) => {
+    order.order_items.forEach((item) => {
         doc.fontSize(10);
         doc.moveDown(0.75);
-        doc.text(index + 1, 15);
+        doc.text(item.qty, 15);
         doc.moveUp(1);
-        doc.text("Item Name", 55);
+        doc.text(item.name, 55);
         doc.moveUp(1);
-        doc.text("100", 190);
+        doc.text(item.price, 190);
         doc.moveUp(1);
-        doc.text(100 * (index + 1), { align: "right" });
+        doc.text(item.totalPrice, { align: "right" });
     });
 
     // double dashed line
-    const linePosition = line_top + 24 + orderItemsLength * 20;
+    const linePosition = line_top + 24 + order_items_length * 20;
     doc.moveTo(10, linePosition).lineTo(287.64, linePosition).dash(5, { space: 2 }).opacity(0.7).stroke();
     doc.moveTo(10, linePosition + 3)
         .lineTo(287.64, linePosition + 3)
@@ -230,7 +198,7 @@ const generatePdf = async (payload) => {
     doc.text(`Net Total:`, 10);
     doc.fontSize(11);
     doc.moveUp(1);
-    doc.text(`900`, { align: "right" });
+    doc.text(order.sub_total, { align: "right" });
 
     // double dashed line
     doc.moveTo(10, linePosition + 23)
@@ -251,16 +219,16 @@ const generatePdf = async (payload) => {
 
     doc.fontSize(11);
     doc.moveDown(0.1);
-    doc.text(`Service Charge-5.00%:`, { align: "left" });
+    doc.text(`Service Charge:`, { align: "left" });
     doc.fontSize(11);
     doc.moveUp(1);
-    doc.text(`39.23`, { align: "right" });
+    doc.text(order.service_fee, { align: "right" });
     doc.fontSize(11);
     doc.moveDown(0.1);
-    doc.text(`VAT-5.00%:`, { align: "left" });
+    doc.text(`VAT:`, { align: "left" });
     doc.fontSize(11);
     doc.moveUp(1);
-    doc.text(`39.23`, { align: "right" });
+    doc.text(order.vat, { align: "right" });
 
     // double dashed line
     doc.moveTo(10, linePosition + 72)
@@ -280,7 +248,7 @@ const generatePdf = async (payload) => {
     doc.text(`GROSS Total:`, 10);
     doc.fontSize(11);
     doc.moveUp(1);
-    doc.text(`900`, { align: "right" });
+    doc.text(order.total, { align: "right" });
 
     // double dashed line
     doc.moveTo(10, linePosition + 96)
@@ -296,7 +264,7 @@ const generatePdf = async (payload) => {
 
     // barcode
     codes.loadModules(["code128"]);
-    const x = codes.create("code128", "3278207ED6");
+    const x = codes.create("code128", order.id);
     doc.moveDown(0.75);
     doc.image(x, doc.page.width / 2 - 70, doc.y, {
         height: 40,
@@ -312,27 +280,187 @@ const generatePdf = async (payload) => {
 };
 
 app.post("/print", async (req, res) => {
+    // order details
+    const order = {
+        id: "3278207ED6",
+        payment_method: null,
+        table: {
+            id: 1,
+            branch: {
+                id: 2,
+                name: "Dhanmondi",
+                address: "Road 15",
+                contact_number: "01774261661",
+                notes: "Secondary",
+                created_at: "2023-11-28T09:20:54.353801+06:00",
+                updated_at: "2023-12-11T19:06:42.892557+06:00",
+                business: 1,
+            },
+            name: "VPXMT1",
+            created_at: "2023-11-28T09:22:08.650716+06:00",
+            updated_at: "2023-11-28T09:22:08.652028+06:00",
+            business: 1,
+        },
+        terminal: null,
+        branch: {
+            id: 5,
+            name: "Amulia",
+            address: "Demra, Amulia",
+            contact_number: "01774261660",
+            notes: "",
+            created_at: "2023-12-19T23:33:49.214703+06:00",
+            updated_at: "2024-01-15T16:37:33.926337+06:00",
+            business: 1,
+        },
+        order_items: [
+            {
+                id: 101,
+                variant: {
+                    id: 16,
+                    sku: "17018843998664801",
+                    name: null,
+                    price: "80.00",
+                    is_active: true,
+                    created_at: "2023-12-06T23:49:41.215419+06:00",
+                    updated_at: "2023-12-06T23:49:41.215821+06:00",
+                    product: 19,
+                },
+                modifiers: [],
+                sku: "17018843998664801",
+                product_name: "Brownie",
+                variant_name: null,
+                order_time_price: "80.00",
+                discount: "0.00",
+                qty: 1,
+                vat: "0.00",
+                order: "3278207ED6",
+            },
+            {
+                id: 102,
+                variant: {
+                    id: 30,
+                    sku: "6971308457077",
+                    name: null,
+                    price: "150.00",
+                    is_active: true,
+                    created_at: "2023-12-14T18:42:25.769952+06:00",
+                    updated_at: "2023-12-14T18:42:25.770180+06:00",
+                    product: 22,
+                },
+                modifiers: [],
+                sku: "6971308457077",
+                product_name: "Virgin Mojito",
+                variant_name: null,
+                order_time_price: "125.00",
+                discount: "0.00",
+                qty: 1,
+                vat: "5.00",
+                order: "3278207ED6",
+            },
+        ],
+        cashier: {
+            id: 3,
+            username: "shamim.owner",
+            name: "Shamim Owner",
+            role: "owner",
+            branch: null,
+            dp: null,
+        },
+        customer: {
+            id: 19,
+            name: "Cus-gehxOVRH",
+            phone_number: null,
+            address: null,
+            city: null,
+            zone: null,
+            pathao_city_id: null,
+            pathao_zone_id: null,
+            reward_points: 0,
+            created_at: "2024-01-29T19:02:08.612062+06:00",
+            updated_at: "2024-01-29T19:02:08.612366+06:00",
+            business: 1,
+        },
+        sub_total: "205.00",
+        discount: "0.00",
+        delivery_charge: "0.00",
+        service_fee: "25.00",
+        parking_fee: "0.00",
+        vat: "6.25",
+        total: "236.25",
+        payment_status: "due",
+        payment_method_name: null,
+        payment_method_ref: null,
+        cash_collected: null,
+        change_amount: null,
+        is_closed: false,
+        order_type: "Dine In",
+        cashier_name: "Shamim Owner",
+        sales_person_name: null,
+        address: null,
+        city: null,
+        zone: null,
+        pathao_city_id: null,
+        pathao_zone_id: null,
+        courier_name: null,
+        courier_tracking_id: null,
+        notes: null,
+        is_voided: false,
+        created_at: "2024-01-29T19:02:07+06:00",
+        updated_at: "2024-01-29T19:02:08.643198+06:00",
+        sales_person: null,
+        business: 1,
+    };
+
+    // user
+    const user = {
+        id: 17,
+        business: {
+            id: 3,
+            name: "Biz Tech eCom",
+            logo: null,
+            type: "ecommerce",
+            vat_type: "exclusive",
+            default_vat_rate: "0.00",
+            service_fee: false,
+            default_service_fee: "0.00",
+            parking_fee: false,
+            invoice_logo: null,
+            invoice_show_address: true,
+            invoice_show_contact_number: true,
+            bin_id: null,
+            invoice_show_mushak: true,
+            invoice_show_cashier_name: true,
+            invoice_show_table: true,
+            invoice_show_number_of_guests: true,
+            invoice_website: null,
+            invoice_extra_text: null,
+            invoice_email: null,
+            pathao_integrated: true,
+            max_branch: 2,
+            sms_credit: 0,
+            enable_electronic_invoice: false,
+        },
+        branch: null,
+        last_login: "2024-02-07T18:53:51.209269+06:00",
+        is_superuser: false,
+        username: "ecom.owner",
+        phone_number: null,
+        name: "eCom Owner",
+        dp: null,
+        role: "owner",
+        last_session: "2024-02-06T21:52:17.243752+06:00",
+        email: null,
+        created_at: "2024-01-30T22:11:21+06:00",
+        updated_at: "2024-02-06T21:52:17.244151+06:00",
+        is_staff: false,
+        is_active: true,
+        terminal: null,
+        groups: [],
+        user_permissions: [],
+    };
+
     // call generatePdf function
-    const doc = await generatePdf({
-        logo: "https://c9devstorage.blob.core.windows.net/c9-pos/c9-pos-f6d97551-0145-473e-8d0b-c92e7b264a45-jpeg",
-        name: "Vapex Limited",
-        show_address: true,
-        address: "Bay's Park Heights, House 2, Road 9 Dhaka-1205, Bangladesh",
-        show_phone_number: true,
-        phone_number: "01711111111",
-        binId: "001233812-1234",
-        showMushak: true,
-        website: "https://vapex.io",
-        email: "contact@vapex.io",
-        show_table: true,
-        table_no: 1,
-        order_id: "123456789",
-        showCashierName: true,
-        cashierName: "John Doe",
-        createdAt: "2021-07-07T10:00:00.000Z",
-        showNumberOfGuests: true,
-        numberOfGuests: 4,
-    });
+    const doc = await generatePdf(order, user);
 
     // See below for browser usage
     doc.pipe(fs.createWriteStream("output.pdf"));
