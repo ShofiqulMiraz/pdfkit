@@ -20,6 +20,9 @@ const generatePdf = async (order, user) => {
         },
     });
 
+    const dash_path = "dash.png";
+    const dash_path_height = 5;
+
     // logo
     if (user.business.invoice_logo) {
         // make the logo a readable buffer
@@ -81,10 +84,10 @@ const generatePdf = async (order, user) => {
 
     // dashed line
     doc.moveDown(0.1);
-    doc.image("dash2.png", { height: 1, width: 277.64, x: 10 });
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
 
     // note
-    doc.moveDown(0.3);
+    doc.moveDown(0.2);
     doc.fontSize(10);
     doc.text("Note:", { align: "left" });
 
@@ -102,7 +105,7 @@ const generatePdf = async (order, user) => {
 
     // dashed line for guest bill
     doc.moveDown(0.1);
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
     doc.moveDown(0.3);
     doc.text("Guest Bill", { align: "left" });
 
@@ -130,7 +133,7 @@ const generatePdf = async (order, user) => {
 
     // order items header
     doc.moveDown(0.1);
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
 
     doc.moveDown(0.25);
     doc.text("Qty", { align: "left" });
@@ -141,12 +144,10 @@ const generatePdf = async (order, user) => {
     doc.moveUp(1);
     doc.text("Total Price", { align: "right" });
 
-    doc.moveDown(0.1);
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
 
     // order items
     order.order_items.forEach((item) => {
-        console.log(item);
         doc.fontSize(10);
         doc.moveDown(0.5);
         doc.text(item.qty, 15);
@@ -160,9 +161,9 @@ const generatePdf = async (order, user) => {
 
     // double dashed line
     doc.moveDown(0.1);
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
-    doc.moveDown(0.1);
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
+    doc.moveUp(0.2);
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
 
     // net total
     doc.fontSize(12);
@@ -173,9 +174,9 @@ const generatePdf = async (order, user) => {
     doc.text(order.sub_total, { align: "right" });
 
     // double dashed line
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
-    doc.moveDown(0.1);
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
+    doc.moveUp(0.2);
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
 
     // include the VAT
     doc.fontSize(11);
@@ -196,9 +197,9 @@ const generatePdf = async (order, user) => {
     doc.text(order.vat, { align: "right" });
 
     // double dashed line
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
-    doc.moveDown(0.1);
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
+    doc.moveUp(0.2);
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
 
     // gross total
     doc.fontSize(12);
@@ -209,9 +210,9 @@ const generatePdf = async (order, user) => {
     doc.text(order.total, { align: "right" });
 
     // double dashed line
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
-    doc.moveDown(0.1);
-    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
+    doc.moveUp(0.2);
+    doc.image(dash_path, { height: dash_path_height, width: 277.64, x: 10 });
 
     // barcode
     codes.loadModules(["code128"]);
@@ -385,7 +386,7 @@ app.post("/print", async (req, res) => {
             invoice_show_mushak: true,
             invoice_show_cashier_name: true,
             invoice_show_table: false,
-            invoice_show_number_of_guests: true,
+            invoice_show_number_of_guests: false,
             invoice_website: null,
             invoice_extra_text: "Thanks for your order!",
             invoice_email: null,
