@@ -3,17 +3,15 @@ const fs = require("fs");
 const express = require("express");
 const { default: axios } = require("axios");
 const codes = require("rescode");
-const { log } = require("console");
 const dayjs = require("dayjs");
+const { log } = require("console");
 
 const app = express();
 
 const generatePdf = async (order, user) => {
-    const order_items_length = order.order_items.length;
-
     // Create a document
     const doc = new PDFDocument({
-        size: [297.64, 500 + order_items_length * 10],
+        size: [297.64, 500],
         margins: {
             top: 10,
             bottom: 10,
@@ -82,10 +80,11 @@ const generatePdf = async (order, user) => {
     }
 
     // dashed line
-    doc.moveTo(10, 116).lineTo(287.64, 116).dash(5, { space: 2 }).opacity(1).stroke();
+    doc.moveDown(0.1);
+    doc.image("dash2.png", { height: 1, width: 277.64, x: 10 });
 
     // note
-    doc.moveDown(1);
+    doc.moveDown(0.3);
     doc.fontSize(10);
     doc.text("Note:", { align: "left" });
 
@@ -102,28 +101,15 @@ const generatePdf = async (order, user) => {
     doc.text(`Order: ${order.id}`, { align: "left" });
 
     // dashed line for guest bill
-    let xStart = 10;
-    let xEnd = 287.64;
-    let yPosition = user.business.invoice_show_table ? 170 : 155;
-    let middlePoint = xStart + (xEnd - xStart) / 2;
-    let textOffset = 1.5; // adjust this value to move the text up or down
-
-    doc.moveTo(xStart, yPosition + textOffset)
-        .lineTo(middlePoint - 30, yPosition + textOffset)
-        .dash(5, { space: 2 })
-        .opacity(1)
-        .stroke();
-    doc.text("Guest Bill", { align: "center" });
-    doc.moveTo(middlePoint + 30, yPosition + textOffset)
-        .lineTo(xEnd, yPosition + textOffset)
-        .dash(5, { space: 2 })
-        .opacity(1)
-        .stroke();
+    doc.moveDown(0.1);
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.moveDown(0.3);
+    doc.text("Guest Bill", { align: "left" });
 
     // cashier name
     if (user.business.invoice_show_cashier_name) {
         doc.fontSize(11);
-        doc.moveDown(0.2);
+        doc.moveDown(0.1);
         doc.text(`Cashier Name: ${order.cashier_name ?? "N/A"}`, { align: "left" });
     }
 
@@ -142,25 +128,11 @@ const generatePdf = async (order, user) => {
         doc.text(`Number of Guests: N/A`, { align: "left" });
     }
 
-    // dashed lined order items header
-    let line_top = 0;
-    let line_bottom = 0;
-    if (user.business.invoice_show_cashier_name && user.business.invoice_show_number_of_guests) {
-        line_top = 230;
-        line_bottom = 250;
-    } else if (user.business.invoice_show_cashier_name && !user.business.invoice_show_number_of_guests) {
-        line_top = 215;
-        line_bottom = 235;
-    } else if (!user.business.invoice_show_cashier_name && user.business.invoice_show_number_of_guests) {
-        line_top = 215;
-        line_bottom = 235;
-    } else {
-        line_top = 200;
-        line_bottom = 220;
-    }
+    // order items header
+    doc.moveDown(0.1);
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
 
-    doc.moveTo(10, line_top).lineTo(287.64, line_top).dash(5, { space: 2 }).opacity(1).stroke();
-    doc.moveDown(0.75);
+    doc.moveDown(0.25);
     doc.text("Qty", { align: "left" });
     doc.moveUp(1);
     doc.text("Item Name", 55);
@@ -168,53 +140,46 @@ const generatePdf = async (order, user) => {
     doc.text("Price", 190);
     doc.moveUp(1);
     doc.text("Total Price", { align: "right" });
-    doc.moveTo(10, line_bottom).lineTo(287.64, line_bottom).dash(5, { space: 2 }).opacity(1).stroke();
+
+    doc.moveDown(0.1);
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
 
     // order items
     order.order_items.forEach((item) => {
+        console.log(item);
         doc.fontSize(10);
-        doc.moveDown(0.75);
+        doc.moveDown(0.5);
         doc.text(item.qty, 15);
         doc.moveUp(1);
-        doc.text(item.name, 55);
+        doc.text(item.product_name, 55);
         doc.moveUp(1);
-        doc.text(item.price, 190);
+        doc.text(item.order_time_price, 190);
         doc.moveUp(1);
-        doc.text(item.totalPrice, { align: "right" });
+        doc.text(`${(parseFloat(item.order_time_price) * item.qty).toFixed(2)}`, { align: "right" });
     });
 
     // double dashed line
-    const linePosition = line_top + 24 + order_items_length * 20;
-    doc.moveTo(10, linePosition).lineTo(287.64, linePosition).dash(5, { space: 2 }).opacity(0.7).stroke();
-    doc.moveTo(10, linePosition + 3)
-        .lineTo(287.64, linePosition + 3)
-        .dash(5, { space: 2 })
-        .opacity(0.7)
-        .stroke();
+    doc.moveDown(0.1);
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.moveDown(0.1);
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
 
     // net total
     doc.fontSize(12);
-    doc.moveDown(1);
+    doc.moveDown(0.3);
     doc.text(`Net Total:`, 10);
     doc.fontSize(11);
     doc.moveUp(1);
     doc.text(order.sub_total, { align: "right" });
 
     // double dashed line
-    doc.moveTo(10, linePosition + 23)
-        .lineTo(287.64, linePosition + 23)
-        .dash(5, { space: 2 })
-        .opacity(0.7)
-        .stroke();
-    doc.moveTo(10, linePosition + 26)
-        .lineTo(287.64, linePosition + 26)
-        .dash(5, { space: 2 })
-        .opacity(0.7)
-        .stroke();
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.moveDown(0.1);
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
 
     // include the VAT
     doc.fontSize(11);
-    doc.moveDown(0.65);
+    doc.moveDown(0.3);
     doc.text(`Included:`, { align: "left" });
 
     doc.fontSize(11);
@@ -231,46 +196,34 @@ const generatePdf = async (order, user) => {
     doc.text(order.vat, { align: "right" });
 
     // double dashed line
-    doc.moveTo(10, linePosition + 72)
-        .lineTo(287.64, linePosition + 72)
-        .dash(5, { space: 2 })
-        .opacity(0.7)
-        .stroke();
-    doc.moveTo(10, linePosition + 75)
-        .lineTo(287.64, linePosition + 75)
-        .dash(5, { space: 2 })
-        .opacity(0.7)
-        .stroke();
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.moveDown(0.1);
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
 
     // gross total
     doc.fontSize(12);
-    doc.moveDown(0.7);
+    doc.moveDown(0.4);
     doc.text(`GROSS Total:`, 10);
     doc.fontSize(11);
     doc.moveUp(1);
     doc.text(order.total, { align: "right" });
 
     // double dashed line
-    doc.moveTo(10, linePosition + 96)
-        .lineTo(287.64, linePosition + 96)
-        .dash(5, { space: 2 })
-        .opacity(0.7)
-        .stroke();
-    doc.moveTo(10, linePosition + 96 + 3)
-        .lineTo(287.64, linePosition + 96 + 3)
-        .dash(5, { space: 2 })
-        .opacity(0.7)
-        .stroke();
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
+    doc.moveDown(0.1);
+    doc.image("dash.png", { height: 1, width: 277.64, x: 10 });
 
     // barcode
     codes.loadModules(["code128"]);
-    const x = codes.create("code128", order.id);
-    doc.moveDown(0.75);
-    doc.image(x, doc.page.width / 2 - 70, doc.y, {
+    const barcode = codes.create("code128", order.id);
+    doc.moveDown(0.5);
+    doc.image(barcode, doc.page.width / 2 - 70, doc.y, {
         height: 40,
     });
     doc.moveDown(0.4);
-    doc.text(`THANKS! VISIT AGAIN.`, { align: "center" });
+    if (user.business.invoice_extra_text) {
+        doc.text(user.business.invoice_extra_text, { align: "center" });
+    }
     doc.text(`Powered By: BizSolution, bizsolution.io`, { align: "center" });
 
     // end doc and return it
@@ -396,7 +349,7 @@ app.post("/print", async (req, res) => {
         order_type: "Dine In",
         cashier_name: "Shamim Owner",
         sales_person_name: null,
-        address: null,
+        address: "Any address",
         city: null,
         zone: null,
         pathao_city_id: null,
@@ -424,16 +377,17 @@ app.post("/print", async (req, res) => {
             service_fee: false,
             default_service_fee: "0.00",
             parking_fee: false,
-            invoice_logo: null,
+            // invoice_logo: null,
+            invoice_logo: "https://c9devstorage.blob.core.windows.net/c9-pos/c9-pos-f544c2d3-b087-4b3b-9178-f457da94dc7c-jpeg",
             invoice_show_address: true,
             invoice_show_contact_number: true,
-            bin_id: null,
+            bin_id: "12345",
             invoice_show_mushak: true,
             invoice_show_cashier_name: true,
-            invoice_show_table: true,
+            invoice_show_table: false,
             invoice_show_number_of_guests: true,
             invoice_website: null,
-            invoice_extra_text: null,
+            invoice_extra_text: "Thanks for your order!",
             invoice_email: null,
             pathao_integrated: true,
             max_branch: 2,
