@@ -4,7 +4,6 @@ const express = require("express");
 const { default: axios } = require("axios");
 const codes = require("rescode");
 const dayjs = require("dayjs");
-const { log } = require("console");
 
 const app = express();
 
